@@ -1,0 +1,61 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+ggplot(data = mpg) 
+
+ggplot(data = mpg) + 
+  geom_point(mapping = aes( x = displ, y = hwy, color = displ))
+
+```
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) + 
+  facet_wrap(~ class, nrow = 2)
+```
+
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  facet_grid(drv ~ .)
+```
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  facet_grid(. ~ cyl)
+```
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point(mapping = aes(color = drv)) + 
+  geom_smooth(se = FALSE, (mapping = aes(linetype = drv)))
+  
+```
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point(mapping = aes(color = drv)) + 
+  geom_smooth(se = FALSE)
+```
+```{r}
+ggplot(data = diamonds) + 
+  geom_pointrange(
+    mapping = aes(x = cut, y = depth, 
+    ymin = depth,
+    ymax = depth
+    
+    ))
+
+```
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = class, y = hwy, color = "Highway"))+
+  geom_point(mapping = aes(x = class, y = cty, color = "City"))
+```
+```{r}
+by_cyl <- group_by(mtcars, cyl)
+
+summarise(by_cyl, mean(disp), mean(hp))
+```
+

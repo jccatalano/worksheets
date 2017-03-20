@@ -1,0 +1,306 @@
+---
+title: "New Nation Votes Explorators Data Analysis"
+author: "Joshua Catalano"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+```{r}
+library(readr)
+library(stringr)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(lubridate)
+
+```
+
+## Load and Clean Data
+
+```{r}
+
+nnv <- read_tsv("all-votes.tsv")
+
+# Clean up variable names
+names(nnv) <- names(nnv) %>% 
+  str_to_lower() %>% 
+  str_replace_all("\\.", "") %>% 
+  str_replace_all("\\s", "_")
+
+extract_year <- function(x) {
+  stopifnot(is.character(x)) 
+  year_char <- stringr::str_extract(x, "\\d{4}") 
+  year_int <- as.integer(year_char)
+  year_int
+}
+
+nnv <- nnv %>%
+  mutate(year = extract_year(nnv$date))
+
+```
+
+# Exploring Pennsylvania 
+
+Below is a graph of the gubernatorial elections of PA.
+```{r}
+nnv %>%
+  filter(state == "Pennsylvania", office == "Governor") %>%
+    group_by(affiliation, year) %>%
+    top_n(1, vote) %>%
+    ggplot(aes(x = year, y = vote, color = affiliation)) +
+  geom_point() +
+  geom_line() +
+  labs(title= "Gubernatorial Elections for Pennsylvania by Party",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+```{r}
+nnv %>%
+  filter(state == "Pennsylvania", office == "Governor", year == "1796")  %>%
+  filter(is.na(county))
+  
+```
+
+This graph and table are not all that interesting but they do indicate some fluctuating disatisfaction for the Federalist party in the 1790s. I suspect that this might be tied to Arthur St. Clair's 1791 defeat at the hands of the Ohio Indians, the 1793 Whiskey Rebellion, and Anthony Wayne's 1794 military campaign into northwest Ohio. Lets test this hypothesis. 
+
+Of these three events, only Wayne's successful campaign triggered a popular or positive response. Interestingly Wayne recieved 139 votes as a Federalist in 1796. This accounted for almost 10% of all Federalist votes. Were these "write in" votes from former soldiers still living in western PA? 
+
+```{r}
+nnv %>%
+  filter(state == "Pennsylvania", office == "Governor", year == "1796", name == "Anthony Wayne")
+  
+```
+Taking a look at where these votes came from reveals that they are from Delaware, Franklin, and Montgomery counties. I would have expected affection for Wayne to have come from Allegheny County (Pittsburgh) due to his recent victory. It appears that the Federalist party's whiskey tax was more unfavorable than Wayne's victory was favorable in western PA. 
+
+So how did Allegheny County vote during this period?
+
+```{r}
+nnv %>%
+  filter(state == "Pennsylvania", office == "Governor", county == "Allegheny") %>%
+  group_by(year, affiliation) %>% 
+  top_n(1, vote) %>%
+    ggplot(aes(x = year, y = vote, color = affiliation)) +
+  geom_point() +
+  geom_line() +
+  labs(title= "Gubernatorial Elections for Pennsylvania, Allegheny County",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+  
+This graph indicates that the Federalist did not do well in either the 1793 or 1796 elections, but made a remarkable turnaround for the 1799 election in Allegheny County.  Did this trend hold true for other national and state elections? What about in neighboring counties? What accounted for the 1799 rebound? 
+
+
+
+```{r}
+nnv %>%
+  filter(county %in% c("Westmoreland", "Allegheny", "Washington", "Fayette"), state == "Pennsylvania", office == "Governor") %>%
+  group_by(year, affiliation, county) %>% 
+    top_n(1, vote) %>%
+    ggplot(aes(x = year, y = vote, color = affiliation)) +
+  geom_point() +
+  geom_line() +
+    labs(title= "Gubernatorial Elections for Pennsylvania, Southwestern Counties",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom") +
+  facet_wrap(~county)
+```
+
+The trend appears to hold true for all of the counties in south western PA; however, the strong Federalist rebound in 1799 was significantly higher in Allegheny County and Fayette County. 
+
+The following graph indicates that the 1799 election was a close contest between James Ross and Thomas McKean. Less than 6,000 votes seperated the two candidates.
+
+```{r}
+nnv %>%
+  filter(office =="Governor", state == "Pennsylvania", id == "pa.governor.1799") %>%
+  group_by(year, affiliation, name) %>% 
+      top_n(1, vote) %>%
+      ggplot(aes(x = name, y = vote, color = affiliation, label = vote)) +
+  geom_point() +
+        labs(title= "1799 Gubernatorial Elections for Pennsylvania",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  geom_label() +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 0.5)) 
+```
+
+So where did the Federalist support come from? 
+
+```{r}
+nnv %>%
+  filter(office =="Governor", state == "Pennsylvania", id == "pa.governor.1799", county != "NA") %>%
+  group_by(year, affiliation, county, name) %>% 
+      top_n(1, vote) %>%
+      ggplot(aes(x = name, y = vote, color = affiliation)) +
+  geom_point() +
+        labs(title= "1799 Gubernatorial Elections for Pennsylvania",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 0.5)) +
+  facet_wrap(~county)
+```
+
+
+This graph above indicates that the 1799 rebound of the Federalsit party was due in large part to the stronger support from the western counties, support that was missing in the 1796 election. 
+
+How did the 1796 and 1799 gubernatiorial election compare to other state and local elections? 
+
+```{r}
+nnv %>%
+  filter(county %in% c("Westmoreland", "Allegheny", "Washington", "Fayette"), state == "Pennsylvania", office == "U.S. House of Representative") %>%
+  group_by(year, affiliation, county) %>% 
+    top_n(1, vote) %>%
+    ggplot(aes(x = year, y = vote, color = affiliation)) +
+  geom_point() +
+  geom_line() +
+    labs(title= "U.S. House of Representative Elections for Pennsylvania, Southwestern Counties",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom") +
+  facet_wrap(~county)
+```
+
+
+```{r}
+nnv %>%
+  filter(county %in% c("Westmoreland", "Allegheny", "Washington", "Fayette"), state == "Pennsylvania", office == "Assembly") %>%
+  group_by(year, affiliation, county) %>% 
+    top_n(1, vote) %>%
+    ggplot(aes(x = year, y = vote, color = affiliation)) +
+  geom_point() +
+  geom_line() +
+    labs(title= "Pennsylvania Assembly Elections, Southwestern Counties",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom") +
+  facet_wrap(~county)
+```
+
+
+```{r}
+nnv %>%
+  filter(county %in% c("Westmoreland", "Allegheny", "Washington", "Fayette"), state == "Pennsylvania", office == "State Senate") %>%
+  group_by(year, affiliation, county) %>% 
+    top_n(1, vote) %>%
+    ggplot(aes(x = year, y = vote, color = affiliation)) +
+  geom_point() +
+  geom_line() +
+    labs(title= "Pennsylvania State Senate Elections, Southwestern Counties",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom") +
+  facet_wrap(~county)
+```
+
+These graphs are not the best measure, but the state senate elections do not show the strong Federalist spike that occured in Allegheny County in the 1799 gubernatorial election. 
+
+
+Adding to this complexity is the changing political affiliations of the 1st and 2nd govenors of Pennsylvania, Thomas Mifflin and Thomas McKean. Mifflin was closely associated with the Federalist party but is listed as an independent. He eventually became affiliated with the Democratic Republican Party. McKean followed a similar path as he was originally a federalist who eventually switched to the Democratic Republican Party only to favor the Constitutional Federalist movment later in life. He was Chief Justice of Pennsylvania from 1777-1799 and enventually supported military intervention in the Whiskey Rebellion; however, he appears to have avoided any backlash over the event among the citizens of southwestern PA.
+
+```{r}
+nnv %>%
+  filter(county %in% c("Westmoreland", "Allegheny", "Washington", "Fayette"), state == "Pennsylvania", office == "Governor", name == "Thomas Mifflin") %>%
+  group_by(year, affiliation, county) %>% 
+    top_n(1, vote) %>%
+    ggplot(aes(x = year, y = vote, color = affiliation)) +
+  geom_point() +
+      labs(title= "Gubernatorial Elections for Pennsylvania, Thomas Mifflin",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom") +
+  facet_wrap(~county)
+```
+
+
+```{r}
+nnv %>%
+  filter(county %in% c("Westmoreland", "Allegheny", "Washington", "Fayette"), state == "Pennsylvania", office == "Governor", name == "Thomas MacKean") %>%
+  group_by(year, affiliation, county) %>% 
+    top_n(1, vote) %>%
+    ggplot(aes(x = year, y = vote, color = affiliation)) +
+  geom_point() +
+      labs(title= "Gubernatorial Elections for Pennsylvania, Thomas McKean",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom") +
+  facet_wrap(~county)
+```
+
+As this information alludes to, party affiliation is not a great measure of the political climate of frontier Pennsylvania in the 1790s and 1800s.Lets see how gubernatorial elections look on a state wide level.
+
+
+
+There is an interesting trend here where landslide elections were immediately followed by a close contest from 1790 to 1808. 
+
+
+```{r}
+nnv %>%
+  filter(office =="Governor", state == "Pennsylvania", id == "pa.governor.1799") %>%
+  group_by(year, affiliation, name) %>% 
+      top_n(1, vote) %>%
+      ggplot(aes(x = name, y = vote, color = affiliation)) +
+  geom_point() +
+        labs(title= "1799 Gubernatorial Elections for Pennsylvania",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 0.5)) 
+```
+
+
+Here is the political career of Thomas McKean in terms of votes received per office. 
+```{r}
+nnv %>%
+  filter(name == "Thomas MacKean") %>%
+  group_by(year, affiliation, state, office) %>% 
+    top_n(1, vote) %>%
+    ggplot(aes(x = year, y = vote, color = office)) +
+  geom_point() +
+      labs(title= "Politcal Career of Thomas McKean",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Office") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom")
+```
+
+A Quick look at voting without party affiliation.
+
+```{r}
+
+nnv %>%
+  filter(office =="Governor", state == "Pennsylvania") %>%
+  group_by(year, affiliation, state, name) %>% 
+      top_n(1, vote) %>%
+      ggplot(aes(x = year, y = vote, color = name)) +
+  geom_point() +
+        labs(title= "Gubernatorial Elections for Pennsylvania by Candidate",
+       x = "Year",
+       y = "Number of Votes",
+       color= "Party Affiliaiton") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
